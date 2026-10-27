@@ -17,6 +17,42 @@
     }
   }
 
+  // Folder sizes are computed on demand, a few folders at a time, so the page
+  // itself appears instantly even when folders are huge.
+  const units = ["KB", "MB", "GB", "TB", "PB", "EB"];
+  function humanSize(n) {
+    if (n < 1024) return n + " B";
+    let i = -1;
+    do {
+      n /= 1024;
+      i++;
+    } while (n >= 1024 && i < units.length - 1);
+    return n.toFixed(1) + " " + units[i];
+  }
+
+  const sizeCells = Array.from(document.querySelectorAll("td[data-size]"));
+  const sizeRequests = new AbortController();
+  window.addEventListener("pagehide", () => sizeRequests.abort());
+
+  async function loadSizes() {
+    for (let cell = sizeCells.shift(); cell; cell = sizeCells.shift()) {
+      try {
+        const res = await fetch(cell.dataset.size, { signal: sizeRequests.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const { bytes, files } = await res.json();
+        cell.textContent = humanSize(bytes);
+        cell.title = `${bytes.toLocaleString()} bytes in ${files.toLocaleString()} files`;
+      } catch {
+        if (sizeRequests.signal.aborted) return;
+        cell.textContent = "—";
+        cell.title = "Size unavailable";
+      }
+    }
+  }
+
+  for (const cell of sizeCells) cell.textContent = "…";
+  for (let i = 0; i < 4; i++) loadSizes();
+
   // Filter the rows of the current page as the user types.
   function applyFilter() {
     const query = filter.value.trim().toLowerCase();

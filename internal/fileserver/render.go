@@ -66,7 +66,7 @@ func newNonce() string { return rand.Text() }
 // contentSecurityPolicy only allows the inline style and script carrying
 // nonce, so a crafted file name can never inject markup that runs.
 func contentSecurityPolicy(nonce string) string {
-	return "default-src 'none'; img-src 'self' data:; " +
+	return "default-src 'none'; img-src 'self' data:; connect-src 'self'; " +
 		"style-src 'nonce-" + nonce + "'; script-src 'nonce-" + nonce + "'; " +
 		"base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
 }

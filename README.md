@@ -52,8 +52,9 @@ on your network can use. Press **Ctrl+C** to stop.
 - **Hosts websites.** Folders with an `index.html` are served as websites, with
   the correct file types for HTML, CSS, JavaScript, fonts, images, video and more.
   Changes on disk show up when you refresh.
-- **File explorer.** Browse folders, sort by name, size or date, filter by
-  typing, and download any file. Folders download as a ZIP.
+- **File explorer.** Browse folders, see file and folder sizes, sort by name,
+  size or date, filter by typing, and download any file. Folders download as
+  a ZIP.
 - **Video and large files.** Videos can be seeked, and interrupted downloads
   can resume.
 - **Always HTTPS.** fs creates its own certificate on first start. `http://`

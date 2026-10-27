@@ -50,6 +50,7 @@ type row struct {
 	Name     string
 	Href     string
 	Download string // the file itself, or a ZIP archive for folders
+	SizeURL  string // folders only: where the explorer fetches the folder size
 	Kind     string
 	IsDir    bool
 	IsLink   bool
@@ -119,6 +120,7 @@ func newRow(base string, e entry, dirQuery string) row {
 	if e.IsDir {
 		r.Kind = "folder"
 		r.Download = r.Href + "/?download"
+		r.SizeURL = r.Href + "/?size"
 		r.Href += "/" + dirQuery
 	} else {
 		r.Kind = fileKind(e.Name)

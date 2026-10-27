@@ -58,7 +58,7 @@
 {{- range .Rows}}
 <tr class="row" data-name="{{.Name}}">
 <td class="col-name"><div class="cell"><a class="item k-{{.Kind}}" href="{{.Href}}"><svg class="ic" aria-hidden="true"><use href="#i-{{.Kind}}"/></svg><span class="name">{{.Name}}</span>{{if .IsLink}}<svg class="ic link" role="img" aria-label="symbolic link"><use href="#i-link"/></svg>{{end}}</a><a class="dl" href="{{.Download}}" download title="{{if .IsDir}}Download as ZIP{{else}}Download{{end}}" aria-label="Download {{.Name}}{{if .IsDir}} as ZIP{{end}}"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></a></div></td>
-<td class="col-size"{{if not .IsDir}} title="{{.Bytes}} bytes"{{end}}>{{.Size}}</td>
+<td class="col-size"{{if .IsDir}} data-size="{{.SizeURL}}"{{else}} title="{{.Bytes}} bytes"{{end}}>{{.Size}}</td>
 <td class="col-modified"><time datetime="{{.ISO}}">{{.Modified}}</time></td>
 </tr>
 {{- end}}

@@ -111,8 +111,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // serveDir serves the folder's index file if it has one, and the explorer
 // otherwise.
 func (h *Handler) serveDir(w http.ResponseWriter, r *http.Request, name, urlPath string) {
-	if r.URL.Query().Has("download") {
+	switch q := r.URL.Query(); {
+	case q.Has("download"):
 		h.serveZip(w, r, name)
+		return
+	case q.Has("size"):
+		h.serveDirSize(w, r, name)
 		return
 	}
 	if !h.opts.DisableIndex {
