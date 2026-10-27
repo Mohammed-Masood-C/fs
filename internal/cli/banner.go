@@ -5,52 +5,88 @@ import (
 	"io"
 	"net"
 	"os"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 
 	"fs/internal/certs"
+	"fs/internal/services"
 	"fs/internal/version"
 )
 
 // printBanner tells the user what is being served, at which URLs, and with
-// which certificate.
-func printBanner(w io.Writer, dir string, addr net.Addr, cert certs.Info) {
-	fmt.Fprintf(w, "\n  fs %s\n\n", version.String())
-	fmt.Fprintf(w, "  Serving:  %s\n", dir)
+// which certificate:
+//
+//	fs v2.0.0  service #1
+//
+//	→ Local:    https://localhost:8080
+//	→ Network:  https://192.168.1.20:8080
+//
+//	  Folder    C:\www
+//	  Login     admin:secret
+//	  Index     on
+//	  ...
+func printBanner(w io.Writer, rec *services.Record, addr net.Addr, cert certs.Info) {
+	p := newPainter(w)
+	fmt.Fprintf(w, "\n  %s %s  %s\n\n", p.bold(p.cyan("fs")), p.dim(version.String()), p.dim(fmt.Sprintf("service #%d", rec.ID)))
 
+	url := func(label, u string) {
+		fmt.Fprintf(w, "  %s %s %s\n", p.green("→"), p.bold(fmt.Sprintf("%-9s", label+":")), p.cyan(u))
+	}
 	tcp, ok := addr.(*net.TCPAddr)
 	switch {
 	case !ok:
-		fmt.Fprintf(w, "  Address:  %s\n", addr)
+		url("Address", addr.String())
 	case tcp.IP == nil || tcp.IP.IsUnspecified():
-		fmt.Fprintf(w, "  Local:    %s\n", siteURL("localhost", tcp.Port))
+		url("Local", siteURL("localhost", tcp.Port))
 		for _, ip := range lanIPs() {
-			fmt.Fprintf(w, "  Network:  %s\n", siteURL(ip.String(), tcp.Port))
+			url("Network", siteURL(ip.String(), tcp.Port))
 		}
 	default:
-		fmt.Fprintf(w, "  URL:      %s\n", siteURL(tcp.IP.String(), tcp.Port))
+		url("URL", siteURL(tcp.IP.String(), tcp.Port))
+	}
+	fmt.Fprintln(w)
+
+	field := func(label, value string) {
+		fmt.Fprintf(w, "    %s %s\n", p.dim(fmt.Sprintf("%-11s", label)), value)
+	}
+	field("Folder", rec.Folder)
+	if rec.User != "" {
+		field("Login", rec.User+":"+rec.Password)
+	} else {
+		field("Login", p.dim("none (anyone who can connect has access)"))
+	}
+	if rec.NoIndex {
+		field("Index", "off (always the file explorer)")
+	} else {
+		field("Index", "on (index.html is served as a website)")
+	}
+	if rec.Verbose {
+		field("Logging", "every request")
+	} else {
+		field("Logging", "warnings and errors")
 	}
 
-	fmt.Fprintln(w)
 	switch {
 	case cert.Custom:
-		fmt.Fprintf(w, "  Certificate: your own, from %s\n", cert.CertFile)
+		field("Certificate", "your own, from "+cert.CertFile)
 	case cert.CertFile == "":
-		fmt.Fprint(w, "  Certificate: self-signed, kept in memory (a new one is made on every start)\n")
+		field("Certificate", "self-signed, temporary (a new one is made on every start)")
 	default:
 		state := "self-signed"
 		if cert.Generated {
 			state = "self-signed, newly created"
 		}
-		fmt.Fprintf(w, "  Certificate: %s, stored in %s\n", state, cert.CertFile)
-		fmt.Fprint(w, "  Browsers show a warning until the certificate is trusted.\n")
-		if runtime.GOOS == "windows" {
-			fmt.Fprintf(w, "  To trust it on this PC (Edge, Chrome):  certutil -user -addstore Root \"%s\"\n", cert.CertFile)
-		}
+		field("Certificate", state)
+		fmt.Fprintf(w, "    %s %s\n", strings.Repeat(" ", 11),
+			p.dim(`Trust it once to avoid browser warnings: certutil -user -addstore Root "`+cert.CertFile+`"`))
 	}
-	fmt.Fprint(w, "\n  Press Ctrl+C to stop.\n\n")
+
+	if rec.Background {
+		fmt.Fprintf(w, "\n  %s\n\n", p.dim(fmt.Sprintf("Stop with: fs stop %d", rec.ID)))
+	} else {
+		fmt.Fprintf(w, "\n  %s\n\n", p.dim(fmt.Sprintf("Press Ctrl+C to stop, or run: fs stop %d", rec.ID)))
+	}
 }
 
 // siteURL formats an HTTPS base URL, leaving out the port if it is 443.

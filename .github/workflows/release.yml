@@ -23,12 +23,11 @@ jobs:
       - name: Build
         run: |
           mkdir dist
-          for target in windows/amd64 windows/arm64 linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
-            os=${target%/*}; arch=${target#*/}; ext=""
-            [ "$os" = windows ] && ext=".exe"
-            CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath \
+          # fs is Windows-only: x64 (most PCs) and ARM64.
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath \
               -ldflags "-s -w -X fs/internal/version.Version=${GITHUB_REF_NAME}" \
-              -o "dist/fs-${GITHUB_REF_NAME}-${os}-${arch}${ext}" .
+              -o "dist/fs-${GITHUB_REF_NAME}-windows-${arch}.exe" .
           done
           cd dist && sha256sum * > checksums.txt
 

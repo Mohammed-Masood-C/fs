@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"strings"
 )
 
-const usage = `fs - serve a folder over HTTP, with a built-in file explorer.
+const usage = `fs - serve a folder over HTTPS, with a built-in file explorer.
 
 Usage:
-  fs [options] [folder]
-  fs --set-default-path <folder>
+  fs [options] [folder]          serve a folder in this terminal
+  fs start [options] [folder]    serve a folder in the background (same as -d)
+  fs ps                          list running services
+  fs stop [id...]                stop the given services, or all of them
+  fs logs [-f] <id>              show a background service's log (-f: keep following)
+  fs --set-default-path <folder> set the folder served when none is given
 
 Only the folder and its contents are accessible. Nothing outside of it can be
 reached, not even through symbolic links. Without a folder, fs serves the
@@ -23,19 +26,19 @@ fs always uses HTTPS, with a self-signed certificate it creates on first
 start. Plain http:// requests on the same port are redirected to https://.
 
 Examples:
-  fs ./site                          serve ./site on https://localhost:80
-  fs --port 443 C:\www               serve C:\www on https://localhost
-  fs --set-default-path C:\www       make "fs" on its own serve C:\www
+  fs C:\www                          serve C:\www on https://localhost:80
+  fs start -p 8080 C:\docs           serve C:\docs on port 8080 in the background
+  fs start --verbose C:\docs         same, logging every request (see fs logs)
+  fs stop 1                          stop service 1
 
-Options:
+Options (for both fs and fs start):
   -p, --port <port>          port to listen on; 0 picks a free port (default 80)
       --host <address>       address to bind to (default: all interfaces)
       --no-index             show the explorer even if a folder has an index.html
       --auth <user:pass>     require HTTP basic authentication (default: $FS_AUTH)
-      --verbose              log every request
-      --set-default-path <folder>
-                             save the folder fs serves when none is given, and exit
-  -v, --version             print the version and exit
+  -d, --detach               run in the background
+      --verbose              log every request, not just warnings and errors
+  -v, --version              print the version and exit
   -h, --help                 print this help and exit
 `
 
@@ -47,6 +50,7 @@ type options struct {
 	noIndex bool
 	auth    string
 	verbose bool
+	detach  bool
 	version bool
 	help    bool
 
@@ -66,6 +70,8 @@ func parseFlags(args []string) (*options, error) {
 	set.BoolVar(&o.noIndex, "no-index", false, "")
 	set.StringVar(&o.auth, "auth", os.Getenv("FS_AUTH"), "")
 	set.BoolVar(&o.verbose, "verbose", false, "")
+	set.BoolVar(&o.detach, "detach", false, "")
+	set.BoolVar(&o.detach, "d", false, "")
 	set.StringVar(&o.setDefault, "set-default-path", "", "")
 	set.BoolVar(&o.version, "version", false, "")
 	set.BoolVar(&o.version, "v", false, "")
@@ -120,12 +126,10 @@ func (o *options) validate(positional []string) error {
 	if o.setDefault != "" && o.folder != "" {
 		return fmt.Errorf("--set-default-path takes the folder as its value: fs --set-default-path <folder>")
 	}
-	if runtime.GOOS == "windows" {
-		// Windows argument parsing turns a quoted path that ends in a backslash,
-		// such as "C:\www\", into C:\www" because \" is an escaped quote.
-		o.folder = strings.TrimSuffix(o.folder, `"`)
-		o.setDefault = strings.TrimSuffix(o.setDefault, `"`)
-	}
+	// Windows argument parsing turns a quoted path that ends in a backslash,
+	// such as "C:\www\", into C:\www" because \" is an escaped quote.
+	o.folder = strings.TrimSuffix(o.folder, `"`)
+	o.setDefault = strings.TrimSuffix(o.setDefault, `"`)
 
 	if o.port < 0 || o.port > 65535 {
 		return fmt.Errorf("invalid port %d: must be between 0 and 65535", o.port)
