@@ -24,6 +24,7 @@
 <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
 <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
 <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+<symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
 <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
 </svg>
 
@@ -44,6 +45,10 @@
 <tr>
 {{- range .Columns}}
 <th class="col-{{.Key}}"{{if .Sorted}} aria-sort="{{if eq .Sorted "asc"}}ascending{{else}}descending{{end}}"{{end}}><a href="{{.Href}}"{{if .Sorted}} class="sorted {{.Sorted}}"{{end}}>{{.Label}}</a></th>
+{{- if eq .Key "size"}}
+<th class="col-count" title="Sub-folders inside, at any depth">Folders</th>
+<th class="col-count" title="Files inside, at any depth">Files</th>
+{{- end}}
 {{- end}}
 </tr>
 </thead>
@@ -52,13 +57,17 @@
 <tr class="up">
 <td class="col-name"><div class="cell"><a class="item" href="{{.Parent}}" title="Parent folder (Backspace)"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg><span class="name">..</span></a></div></td>
 <td class="col-size"></td>
+<td class="col-count"></td>
+<td class="col-count"></td>
 <td class="col-modified"></td>
 </tr>
 {{- end}}
 {{- range .Rows}}
 <tr class="row" data-name="{{.Name}}">
-<td class="col-name"><div class="cell"><a class="item k-{{.Kind}}" href="{{.Href}}"><svg class="ic" aria-hidden="true"><use href="#i-{{.Kind}}"/></svg><span class="name">{{.Name}}</span>{{if .IsLink}}<svg class="ic link" role="img" aria-label="symbolic link"><use href="#i-link"/></svg>{{end}}</a><a class="dl" href="{{.Download}}" download title="{{if .IsDir}}Download as ZIP{{else}}Download{{end}}" aria-label="Download {{.Name}}{{if .IsDir}} as ZIP{{end}}"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></a></div></td>
+<td class="col-name"><div class="cell"><a class="item k-{{.Kind}}" href="{{.Href}}"><svg class="ic" aria-hidden="true"><use href="#i-{{.Kind}}"/></svg><span class="name">{{.Name}}</span>{{if .IsLink}}<svg class="ic link" role="img" aria-label="symbolic link"><use href="#i-link"/></svg>{{end}}</a><details class="menu"><summary title="More actions" aria-label="More actions for {{.Name}}"><svg class="ic" aria-hidden="true"><use href="#i-dots"/></svg></summary><div class="menu-list"><a href="{{.Download}}" download><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>{{if .IsDir}}Download as ZIP{{else}}Download{{end}}</a></div></details></div></td>
 <td class="col-size"{{if .IsDir}} data-size="{{.SizeURL}}"{{else}} title="{{.Bytes}} bytes"{{end}}>{{.Size}}</td>
+<td class="col-count"{{if .IsDir}} data-count="folders"{{end}}></td>
+<td class="col-count"{{if .IsDir}} data-count="files"{{end}}></td>
 <td class="col-modified"><time datetime="{{.ISO}}">{{.Modified}}</time></td>
 </tr>
 {{- end}}

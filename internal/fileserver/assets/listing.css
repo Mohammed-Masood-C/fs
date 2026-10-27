@@ -6,6 +6,7 @@
   --hover: #f3f6f9;
   --accent: #0969da;
   --bar: rgba(255, 255, 255, 0.9);
+  --shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
   --folder: #e3a008;
   --image: #8250df;
   --video: #cf222e;
@@ -27,6 +28,7 @@
     --hover: #161b22;
     --accent: #4493f8;
     --bar: rgba(13, 17, 23, 0.9);
+    --shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
     --folder: #f2c94c;
     --image: #b083f0;
     --video: #ff7b72;
@@ -71,7 +73,8 @@ a {
 }
 
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -99,7 +102,7 @@ input:focus-visible {
 .top {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -235,6 +238,11 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+/* The name cell holds the row menu, which must be able to overflow it. */
+.files td.col-name {
+  overflow: visible;
+}
+
 .files tbody tr:hover,
 .files tbody tr:focus-within {
   background: var(--hover);
@@ -247,6 +255,16 @@ main {
 
 .files th.col-size {
   text-align: right;
+}
+
+.col-count {
+  width: 84px;
+  text-align: right;
+}
+
+.files th.col-count {
+  text-align: right;
+  cursor: help;
 }
 
 .col-modified {
@@ -311,17 +329,75 @@ main {
   color: var(--muted);
 }
 
-.dl {
+/* Row menu: the "..." button and its drop-down */
+
+.menu {
+  position: relative;
   flex: none;
-  display: inline-flex;
-  padding: 4px;
-  border-radius: 6px;
-  color: var(--muted);
 }
 
-.dl:hover {
-  color: var(--accent);
+.menu summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu summary .ic {
+  fill: currentColor;
+  stroke: none;
+}
+
+.menu summary:hover,
+.menu[open] summary {
+  color: var(--fg);
   background: var(--border);
+}
+
+.menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.menu-list a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.menu-list a:hover,
+.menu-list a:focus-visible {
+  background: var(--hover);
+  color: var(--accent);
+  outline: none;
+}
+
+.menu-list .ic {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
 }
 
 .empty {
@@ -404,7 +480,8 @@ main {
     padding: 4px 8px 16px;
   }
 
-  .col-modified {
+  .col-modified,
+  .col-count {
     display: none;
   }
 

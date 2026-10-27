@@ -6,14 +6,16 @@ import (
 	"path/filepath"
 )
 
-// dirSize is the JSON answer to a folder size request (?size).
+// dirSize is the JSON answer to a folder size request (?size). All numbers
+// include everything below the folder, not just its direct contents.
 type dirSize struct {
-	Bytes int64 `json:"bytes"`
-	Files int   `json:"files"`
+	Bytes   int64 `json:"bytes"`
+	Files   int   `json:"files"`
+	Folders int   `json:"folders"`
 }
 
 // serveDirSize reports the total size of all files in the folder name and
-// its sub-folders. The explorer requests it for each folder after the page
+// its sub-folders, and how many files and sub-folders there are. The explorer requests it for each folder after the page
 // has loaded, so big folders never delay the page itself.
 //
 // It counts what a ZIP download of the folder would contain: links to files
@@ -34,6 +36,9 @@ func (h *Handler) serveDirSize(w http.ResponseWriter, r *http.Request, name stri
 			return err // the visitor left the page
 		}
 		if d.IsDir() {
+			if p != dir {
+				size.Folders++
+			}
 			return nil
 		}
 		info, err := d.Info()

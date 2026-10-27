@@ -34,24 +34,67 @@
   const sizeRequests = new AbortController();
   window.addEventListener("pagehide", () => sizeRequests.abort());
 
+  // The folder and file count cells of the same row are filled from the same answer.
+  const countCells = (cell) => ({
+    folders: cell.parentElement.querySelector('[data-count="folders"]'),
+    files: cell.parentElement.querySelector('[data-count="files"]'),
+  });
+
   async function loadSizes() {
     for (let cell = sizeCells.shift(); cell; cell = sizeCells.shift()) {
+      const counts = countCells(cell);
       try {
         const res = await fetch(cell.dataset.size, { signal: sizeRequests.signal });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        const { bytes, files } = await res.json();
+        const { bytes, files, folders } = await res.json();
         cell.textContent = humanSize(bytes);
         cell.title = `${bytes.toLocaleString()} bytes in ${files.toLocaleString()} files`;
+        if (counts.folders) counts.folders.textContent = folders.toLocaleString();
+        if (counts.files) counts.files.textContent = files.toLocaleString();
       } catch {
         if (sizeRequests.signal.aborted) return;
-        cell.textContent = "—";
+        for (const c of [cell, counts.folders, counts.files]) {
+          if (c) c.textContent = "—";
+        }
         cell.title = "Size unavailable";
       }
     }
   }
 
-  for (const cell of sizeCells) cell.textContent = "…";
+  for (const cell of sizeCells) {
+    const counts = countCells(cell);
+    for (const c of [cell, counts.folders, counts.files]) {
+      if (c) c.textContent = "…";
+    }
+  }
   for (let i = 0; i < 4; i++) loadSizes();
+
+  // Row menus ("..."): one open at a time, closed by an outside click, by
+  // Escape, or once an action in it is chosen.
+  const menus = Array.from(document.querySelectorAll("details.menu"));
+  function closeMenus(except) {
+    let closed = false;
+    for (const menu of menus) {
+      if (menu !== except && menu.open) {
+        menu.open = false;
+        closed = true;
+      }
+    }
+    return closed;
+  }
+  for (const menu of menus) {
+    menu.addEventListener("toggle", () => {
+      if (menu.open) closeMenus(menu);
+    });
+    menu.querySelector(".menu-list").addEventListener("click", () => {
+      menu.open = false;
+    });
+  }
+  document.addEventListener("click", (event) => {
+    for (const menu of menus) {
+      if (menu.open && !menu.contains(event.target)) menu.open = false;
+    }
+  });
 
   // Filter the rows of the current page as the user types.
   function applyFilter() {
@@ -108,7 +151,9 @@
         }
         break;
       case "Escape":
-        if (inFilter) {
+        if (closeMenus(null)) {
+          event.preventDefault();
+        } else if (inFilter) {
           filter.value = "";
           applyFilter();
           filter.blur();
