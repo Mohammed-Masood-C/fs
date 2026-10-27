@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"slices"
 	"time"
+
+	"fs/internal/config"
 )
 
 const (
@@ -38,20 +40,11 @@ type Info struct {
 	Custom    bool   // the certificate was provided by the user, not created by fs
 }
 
-// Dir returns the folder that holds cert.pem and key.pem.
-func Dir() (string, error) {
-	base, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(base, "fs"), nil
-}
-
 // Load returns the certificate to serve for hosts (DNS names and IP
 // addresses). A stored certificate is reused unless it was created by fs and
 // expires soon or does not cover all hosts, in which case a new one is made.
 func Load(hosts []string) (tls.Certificate, Info, error) {
-	dir, err := Dir()
+	dir, err := config.Dir()
 	if err != nil {
 		// No config folder (unusual): fall back to a certificate in memory.
 		cert, _, _, err := create(hosts)

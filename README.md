@@ -23,7 +23,15 @@ The result is a single file with no dependencies. Copy it anywhere.
 ## Usage
 
 ```
-fs [options] <folder>
+fs [options] [folder]
+```
+
+Tired of typing the folder? Set a default once, then just run `fs`:
+
+```sh
+fs --set-default-path C:\www
+fs                    # serves C:\www
+fs D:\other           # a folder you pass still wins
 ```
 
 | Option | Description |
@@ -33,6 +41,7 @@ fs [options] <folder>
 | `--no-index` | Always show the file explorer, even if a folder has an `index.html` |
 | `--auth <user:pass>` | Require a username and password |
 | `--verbose` | Print a line for every request |
+| `--set-default-path <folder>` | Save the folder `fs` serves when you don't give one |
 | `-v`, `--version` | Show the version |
 | `-h`, `--help` | Show help |
 

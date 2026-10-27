@@ -12,10 +12,12 @@ import (
 const usage = `fs - serve a folder over HTTP, with a built-in file explorer.
 
 Usage:
-  fs [options] <folder>
+  fs [options] [folder]
+  fs --set-default-path <folder>
 
-Only <folder> and its contents are accessible. Nothing outside of it can be
-reached, not even through symbolic links.
+Only the folder and its contents are accessible. Nothing outside of it can be
+reached, not even through symbolic links. Without a folder, fs serves the
+default folder set with --set-default-path.
 
 fs always uses HTTPS, with a self-signed certificate it creates on first
 start. Plain http:// requests on the same port are redirected to https://.
@@ -23,6 +25,7 @@ start. Plain http:// requests on the same port are redirected to https://.
 Examples:
   fs ./site                          serve ./site on https://localhost:80
   fs --port 443 C:\www               serve C:\www on https://localhost
+  fs --set-default-path C:\www       make "fs" on its own serve C:\www
 
 Options:
   -p, --port <port>          port to listen on; 0 picks a free port (default 80)
@@ -30,7 +33,9 @@ Options:
       --no-index             show the explorer even if a folder has an index.html
       --auth <user:pass>     require HTTP basic authentication (default: $FS_AUTH)
       --verbose              log every request
-  -v, --version              print the version and exit
+      --set-default-path <folder>
+                             save the folder fs serves when none is given, and exit
+  -v, --version             print the version and exit
   -h, --help                 print this help and exit
 `
 
@@ -44,6 +49,8 @@ type options struct {
 	verbose bool
 	version bool
 	help    bool
+
+	setDefault string // folder to store as the default, then exit
 }
 
 // parseFlags parses and validates the command line. Unlike the flag package's
@@ -59,6 +66,7 @@ func parseFlags(args []string) (*options, error) {
 	set.BoolVar(&o.noIndex, "no-index", false, "")
 	set.StringVar(&o.auth, "auth", os.Getenv("FS_AUTH"), "")
 	set.BoolVar(&o.verbose, "verbose", false, "")
+	set.StringVar(&o.setDefault, "set-default-path", "", "")
 	set.BoolVar(&o.version, "version", false, "")
 	set.BoolVar(&o.version, "v", false, "")
 	set.BoolVar(&o.help, "help", false, "")
@@ -100,19 +108,23 @@ func parseInterleaved(set *flag.FlagSet, args []string) ([]string, error) {
 }
 
 func (o *options) validate(positional []string) error {
+	// Without a folder, the default folder is served (checked by the caller).
 	switch len(positional) {
 	case 0:
-		return fmt.Errorf("missing the folder to serve")
 	case 1:
 		o.folder = positional[0]
 	default:
-		return fmt.Errorf("expected exactly one folder, got %d arguments: %s",
+		return fmt.Errorf("expected at most one folder, got %d arguments: %s",
 			len(positional), strings.Join(positional, " "))
+	}
+	if o.setDefault != "" && o.folder != "" {
+		return fmt.Errorf("--set-default-path takes the folder as its value: fs --set-default-path <folder>")
 	}
 	if runtime.GOOS == "windows" {
 		// Windows argument parsing turns a quoted path that ends in a backslash,
 		// such as "C:\www\", into C:\www" because \" is an escaped quote.
 		o.folder = strings.TrimSuffix(o.folder, `"`)
+		o.setDefault = strings.TrimSuffix(o.setDefault, `"`)
 	}
 
 	if o.port < 0 || o.port > 65535 {

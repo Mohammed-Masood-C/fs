@@ -18,6 +18,7 @@ import (
 	"syscall"
 
 	"fs/internal/certs"
+	"fs/internal/config"
 	"fs/internal/fileserver"
 	"fs/internal/middleware"
 	"fs/internal/server"
@@ -46,6 +47,13 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	case opts.version:
 		fmt.Fprintf(stdout, "fs %s\n", version.String())
 		return exitOK
+	case opts.setDefault != "":
+		return setDefaultPath(opts.setDefault, stdout, stderr)
+	}
+
+	dir, code := folderToServe(opts.folder, stderr)
+	if code != exitOK {
+		return code
 	}
 
 	// Quiet by default: only warnings and errors, besides the startup banner.
@@ -54,21 +62,63 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		level = slog.LevelInfo
 	}
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: level}))
-	if err := serve(opts, logger, stdout); err != nil {
+	if err := serve(dir, opts, logger, stdout); err != nil {
 		fmt.Fprintf(stderr, "fs: %v\n", err)
 		return exitError
 	}
 	return exitOK
 }
 
-// serve opens the folder, starts the server and blocks until SIGINT or
-// SIGTERM, after which the server shuts down gracefully.
-func serve(opts *options, logger *slog.Logger, stdout io.Writer) error {
-	dir, err := resolveFolder(opts.folder)
+// setDefaultPath stores folder as the one served when fs runs without a
+// folder argument.
+func setDefaultPath(folder string, stdout, stderr io.Writer) int {
+	dir, err := resolveFolder(folder)
 	if err != nil {
-		return err
+		fmt.Fprintf(stderr, "fs: %v\n", err)
+		return exitError
+	}
+	if err := config.SetDefaultPath(dir); err != nil {
+		fmt.Fprintf(stderr, "fs: save default folder: %v\n", err)
+		return exitError
+	}
+	fmt.Fprintf(stdout, "Default folder set to %s\nRun fs without a folder to serve it.\n", dir)
+	return exitOK
+}
+
+// folderToServe returns the absolute path of the folder given on the command
+// line or, without one, of the default folder. On failure it reports the
+// problem and returns a non-zero exit code.
+func folderToServe(folder string, stderr io.Writer) (string, int) {
+	if folder != "" {
+		dir, err := resolveFolder(folder)
+		if err != nil {
+			fmt.Fprintf(stderr, "fs: %v\n", err)
+			return "", exitError
+		}
+		return dir, exitOK
 	}
 
+	def, err := config.DefaultPath()
+	if err != nil {
+		fmt.Fprintf(stderr, "fs: read default folder: %v\n", err)
+		return "", exitError
+	}
+	if def == "" {
+		fmt.Fprint(stderr, "fs: missing the folder to serve\n"+
+			"Pass one (fs <folder>), or set a default with: fs --set-default-path <folder>\n")
+		return "", exitUsage
+	}
+	dir, err := resolveFolder(def)
+	if err != nil {
+		fmt.Fprintf(stderr, "fs: default folder: %v\nChange it with: fs --set-default-path <folder>\n", err)
+		return "", exitError
+	}
+	return dir, exitOK
+}
+
+// serve opens the folder dir, starts the server and blocks until SIGINT or
+// SIGTERM, after which the server shuts down gracefully.
+func serve(dir string, opts *options, logger *slog.Logger, stdout io.Writer) error {
 	// Every file access goes through root, which refuses paths and symbolic
 	// links that would escape the folder.
 	root, err := os.OpenRoot(dir)
